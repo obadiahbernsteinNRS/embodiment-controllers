@@ -138,7 +138,7 @@ class MyCobotFeagiController:
         self._stream_proprioception()
 
     def _apply_feagi_targets(self) -> None:
-        """Apply FEAGI joint targets as absolute servo angles (when arm is idle).
+        """Apply FEAGI joint targets as absolute servo angles.
 
         Each mapped joint is commanded individually, so joints not in the joint map
         (e.g. a disabled or broken servo) are never driven. Only joints whose servo
@@ -153,8 +153,11 @@ class MyCobotFeagiController:
         if not has_new:
             return
         with self._hardware_lock:
-            if self._device.is_moving():
-                return
+            # NOTE: intentionally no is_moving() gate here. A broken/limited servo never
+            # reaches its target, so MyCobot.is_moving() reports "moving" forever; gating on
+            # it froze EVERY joint (arm never moves). Legacy pure_python_mycobot drives all
+            # servos each burst with no such gate — match that behavior. Exclude a broken
+            # servo via the joint map (example_joint_map_no_servo2.json), not by gating here.
             for joint in self._joint_map.joints:
                 servo = self._servos[joint.index]
                 seq = servo._rx_command_seq
